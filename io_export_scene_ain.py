@@ -108,16 +108,19 @@ def writeAIN(file,srcdir,dstdir):
     file.write("# MESH_NAME - mesh name\n")
     file.write("# list of normal data fields\n")
     file.write("# IMG_COUNT - number of image paths defined in file\n") 
+    file.write("# MATER_COUNT - number of materials defined in file\n")
+    file.write("# MESH_COUNT - number of meshes defined in file\n")
+    file.write("#           _COUNT lines always appear before corresponding data blocks\n")
     file.write("# IMG_PATH - path to image source\n")
     file.write("# MATER_AMBIENT MATER_DIFFUSE_COLOR MATER_DIFFUSE_INTENSITY MATER_SPECULAR_COLOR MATER_SPECULAR_INTENSITY - generic material parameters\n")
     file.write("# MATER_TEX_AMBIENT - ambient texture image - index of image (index base 0 ) from IMAGES section\n")
     file.write("# MATER_TEX_DIFFUSE - diffuse texture image\n")
     file.write("# MATER_TEX_SPECULAR_COL - speculat color texture image\n")
     file.write("# MATER_TEX_NORMAL - normal texture image\n")
-    file.write("# VERTEX_COUNT - number of vertices in current mesh (for easier lodaing)\n")
-    file.write("# FACE_COUNT - number of faces in current mesh\n")
-    file.write("# MATERIAL_COUNT - number of materials used in current mesh\n")
-    file.write("# MATER - current material id\n")
+    file.write("# MESH_VERTEX_COUNT - number of vertices in current mesh (for easier lodaing)\n")
+    file.write("# MESH_FACE_COUNT - number of faces in current mesh\n")
+    file.write("# MESH_MATER_COUNT - number of materials used in current mesh\n")
+    file.write("# MESH_MATER - material index\n")
     file.write("# VERTEX_PUNT - vertex definition in form [position][uv][normal][tangent]\n")
     file.write("# FACE3 - triangular face definioniton in format [index of v0, index of v1, index of v2]\n")
     file.write("#====================== IMAGES =====================\n")
@@ -138,8 +141,15 @@ def writeAIN(file,srcdir,dstdir):
             file.write("\n")
             img2index[img.name]=count
             count=count + 1
-    file.write("#====================== MATERIALS =====================\n")        
+    file.write("#====================== MATERIALS =====================\n")
+    file.write("MATER_COUNT: ")
+    file.write(str(len(bpy.data.materials)))
+    file.write("\n")
+    mater2index = {}
+    count = 0
     for mater in bpy.data.materials:
+        mater2index[mater.name] = count
+        count = count + 1
         file.write("MATER_NAME: ")
         file.write(mater.name)        
         file.write("\n")
@@ -196,7 +206,7 @@ def writeAIN(file,srcdir,dstdir):
             me = obj.to_mesh(bpy.context.scene,apply_modifiers=True,settings="RENDER")
         except RuntimeError:
             continue # no mesh data in this object
-        if me.uv_layers.active == None:
+        if len(me.uv_layers) == 0:
             print("Mesh ",me.name," has no UV coordinates")
             continue 
         bm = bmesh.new()
@@ -206,16 +216,20 @@ def writeAIN(file,srcdir,dstdir):
         bm.free()
         me.name = obj.name
         meshes.append(me)
-    # calculate tangents 
+    file.write("MESH_COUNT: ")
+    file.write(str(len(meshes)))
+    file.write("\n");
     for me in meshes:
-        uvlayer = me.uv_layers.active.data
+        uvlist = me.uv_layers[0].data[:] # copy data to separate table - for some reason orginal table will be overwritten with normals?
         me.calc_tangents()
         vertices = {}
         faces = []
         unique_vertices = []
         for face in me.polygons:
             face_indices = []
-            for (vert,uv) in [(me.loops[i],uvlayer[i]) for i in face.loop_indices]:
+            for loopIdx in face.loop_indices:
+                vert = me.loops[loopIdx]
+                uv = uvlist[loopIdx].uv                
                 if vert.vertex_index in vertices:
                     vdata = vertices[vert.vertex_index]
                 else:
@@ -224,7 +238,7 @@ def writeAIN(file,srcdir,dstdir):
                     vertices[vert.vertex_index] = vdata
                 ti = vdata.addTangent(vert.tangent)
                 ni = vdata.addNormal(vert.normal)
-                uvi = vdata.addUV(uv.uv)
+                uvi = vdata.addUV(uv)
                 unique_vi = (vert.vertex_index,uvi,ni,ti)
                 if unique_vi not in unique_vertices:
                     unique_vertices.append(unique_vi)
@@ -234,18 +248,21 @@ def writeAIN(file,srcdir,dstdir):
         file.write("MESH_NAME: ")
         file.write(me.name)
         file.write("\n")
-        file.write("VERTEX_COUNT: ")
+        file.write("MESH_VERTEX_COUNT: ")
         file.write(str(len(unique_vertices)))
         file.write("\n")
-        file.write("FACE_COUNT: ")
+        file.write("MESH_FACE_COUNT: ")
         file.write(str(len(faces)))
         file.write("\n")
-        file.write("MATERIAL_COUNT: ")
+        file.write("MESH_MATER_COUNT: ")
         file.write(str(len(me.materials)))
         file.write("\n")
         for mat in me.materials:
-            file.write("MATER: ");
-            file.write(mat.name)
+            file.write("MESH_MATER: ");
+            if mat.name in mater2index:
+                file.write(str(mater2index[mat.name]))
+            else:
+                file.write("-1")
             file.write("\n")
         for uvi in unique_vertices:
             vdata = vertices[uvi[0]]
