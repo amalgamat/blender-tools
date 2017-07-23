@@ -223,7 +223,7 @@ def writeAIN(file,srcdir,dstdir):
         uvlist = me.uv_layers[0].data[:] # copy data to separate table - for some reason orginal table will be overwritten with normals?
         me.calc_tangents()
         vertices = {}
-        faces = []
+        faces = {} # key is material ID
         unique_vertices = []
         for face in me.polygons:
             face_indices = []
@@ -243,7 +243,9 @@ def writeAIN(file,srcdir,dstdir):
                 if unique_vi not in unique_vertices:
                     unique_vertices.append(unique_vi)
                 face_indices.append(unique_vertices.index(unique_vi))
-            faces.append(face_indices)
+            if face.material_index not in faces:
+                faces[face.material_index] = []
+            faces[face.material_index].append(face_indices)
         # save data
         file.write("MESH_NAME: ")
         file.write(me.name)
@@ -257,25 +259,22 @@ def writeAIN(file,srcdir,dstdir):
         file.write("MESH_MATER_COUNT: ")
         file.write(str(len(me.materials)))
         file.write("\n")
-        for mat in me.materials:
-            file.write("MESH_MATER: ");
-            if mat.name in mater2index:
-                file.write(str(mater2index[mat.name]))
-            else:
-                file.write("-1")
-            file.write("\n")
         for uvi in unique_vertices:
             vdata = vertices[uvi[0]]
             vdata.writeUniqueVertex(file,uvi[1],uvi[2],uvi[3])
-        for face in faces:
-            file.write("FACE3: ")
-            file.write("[")
-            file.write(str(face[0]))
-            file.write(",")
-            file.write(str(face[1]))
-            file.write(",")
-            file.write(str(face[2]))
-            file.write("]\n")
+        for material_id in faces.keys():
+            file.write("MESH_MATER: ")
+            file.write(str(material_id))
+            file.write("\n")
+            for face in faces[material_id]:
+                file.write("FACE3: ")
+                file.write("[")
+                file.write(str(face[0]))
+                file.write(",")
+                file.write(str(face[1]))
+                file.write(",")
+                file.write(str(face[2]))
+                file.write("]\n")
         file.write("\n")
         # remove temporary object
         bpy.data.meshes.remove(me)
