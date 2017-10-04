@@ -95,13 +95,13 @@ class VertexData:
             writeVector3d(file,self.Normals[normalIndex])
             writeVector3d(file,self.Tangents[tangentIndex])
             file.write("\n")
-    def writeAverageNormal(self,file):
             file.write("VERTEX_AN: ")
             an = Vector()
             for n in self.Normals:
                an += n
             an /= len(self.Normals)
             writeVector3d(file,an)
+            file.write("\n")        
           
 def writeAIN(file,srcdir,dstdir):
     file.write("AIN_FILE: V0.0-0\n")    
