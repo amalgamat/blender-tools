@@ -95,8 +95,14 @@ class VertexData:
             writeVector3d(file,self.Normals[normalIndex])
             writeVector3d(file,self.Tangents[tangentIndex])
             file.write("\n")
-     
-     
+    def writeAverageNormal(self,file):
+            file.write("VERTEX_AN: ")
+            an = Vector()
+            for n in self.Normals:
+               an += n
+            an /= len(self.Normals)
+            writeVector3d(file,an)
+          
 def writeAIN(file,srcdir,dstdir):
     file.write("AIN_FILE: V0.0-0\n")    
     file.write("# lines beginning with # are comments\n")
@@ -246,6 +252,7 @@ def writeAIN(file,srcdir,dstdir):
             if face.material_index not in faces:
                 faces[face.material_index] = []
             faces[face.material_index].append(face_indices)
+        # vertices - every entry contains unique coordiantes and list of normals and tangents
         # save data
         file.write("MESH_NAME: ")
         file.write(me.name)
