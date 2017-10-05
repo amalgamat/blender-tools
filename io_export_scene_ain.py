@@ -28,6 +28,7 @@ import bmesh
 import os
 import bpy_extras
 import bpy_extras.io_utils
+import mathutils
 from bpy.props import (
         BoolProperty,
         FloatProperty,
@@ -66,14 +67,17 @@ def writeColor(file,color):
         file.write(",")
         file.write(f2str(color.b))
         file.write("]")            
+def sameVectors(na,nb):
+        coeff = na*nb/(na.length*nb.length)
+        return coeff > 0.999        
 
 
 class VertexData:
-    Position = None
-    Tangents = []
-    Normals = []
-    UVs = []
-
+    def __init__(self):
+        self.Position = None
+        self.Tangents = []
+        self.Normals = []
+        self.UVs = []        
     def addToList(value,list2Mod):
         if value in list2Mod:
             return list2Mod.index(value)
@@ -95,7 +99,24 @@ class VertexData:
             writeVector3d(file,self.Normals[normalIndex])
             writeVector3d(file,self.Tangents[tangentIndex])
             file.write("\n")
-     
+            file.write("VERTEX_AVG_N: ")
+            writeVector3d(file,self.AvgN)
+            file.write("\n")
+    def calcAvgVal(self):
+            self.AvgN = mathutils.Vector()
+            uniqueNormals = []
+            for nN in self.Normals:
+                found = False
+                for uN in uniqueNormals:
+                    if sameVectors(nN,uN):
+                        found = True
+                        break
+                if not found:
+                    uniqueNormals.append(nN)
+            for cN in uniqueNormals:
+                self.AvgN += cN
+            self.AvgN /= self.AvgN.length
+ 
      
 def writeAIN(file,srcdir,dstdir):
     file.write("AIN_FILE: V0.0-0\n")    
@@ -122,6 +143,7 @@ def writeAIN(file,srcdir,dstdir):
     file.write("# MESH_MATER_COUNT - number of materials used in current mesh\n")
     file.write("# MESH_MATER - material index\n")
     file.write("# VERTEX_PUNT - vertex definition in form [position][uv][normal][tangent]\n")
+    file.write("# VERTEX_AVG_N - additional averaged normal for generation of shadow volume\n")
     file.write("# FACE3 - triangular face definioniton in format [index of v0, index of v1, index of v2]\n")
     file.write("#====================== IMAGES =====================\n")
     img2index = {}
@@ -246,6 +268,8 @@ def writeAIN(file,srcdir,dstdir):
             if face.material_index not in faces:
                 faces[face.material_index] = []
             faces[face.material_index].append(face_indices)
+        for vert in vertices.values():
+            vert.calcAvgVal()
         # save data
         file.write("MESH_NAME: ")
         file.write(me.name)
