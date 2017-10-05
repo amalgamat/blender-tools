@@ -69,8 +69,45 @@ def writeColor(file,color):
         file.write("]")            
 def sameVectors(na,nb):
         coeff = na*nb/(na.length*nb.length)
-        return coeff > 0.999        
+        return coeff > 0.999     
 
+# keyVertexList 3 indices in P only list
+# uniqueVertexList - uniqueVertexList in PUNT list (unique combination)
+def add2AdjancedDictionary(keyVertexList,uniqueVertexList,adjancedDict):
+        adjKey = (keyVertexList[0],keyVertexList[1])
+        if adjKey not in adjancedDict:
+            adjancedDict[adjKey] = uniqueVertexList[2]
+        adjKey = (keyVertexList[1],keyVertexList[2])
+        if adjKey not in adjancedDict:
+            adjancedDict[adjKey] = uniqueVertexList[0]            
+        adjKey = (keyVertexList[2],keyVertexList[0])
+        if adjKey not in adjancedDict:
+            adjancedDict[adjKey] = uniqueVertexList[1]
+    
+# uniqueFaceVertexList - face  "unique vertex" indices
+# adjancedDisct - dictionary keyed by "position only" vertex indices
+# uniqe2ponly - dictionar - unique to postion only index
+def getAindAdjancedVertices(uniqueFaceVertexList,adjancedDict,uniqe2ponly):
+        ponly = []
+        result = []
+        for unique in uniqueFaceVertexList:
+            ponly.append(uniqe2ponly[unique])
+        adjKey = (ponly[0],ponly[2])    # adjanced traingles have reversed order of indices
+        if adjKey not in adjancedDict:
+            result.append(None)
+        else:
+            result.append(adjancedDict[adjKey]) 
+        adjKey = (ponly[2],ponly[1])    # adjanced traingles have reversed order of indices
+        if adjKey not in adjancedDict:
+            result.append(None)
+        else:
+            result.append(adjancedDict[adjKey])
+        adjKey = (ponly[1],ponly[0])    # adjanced traingles have reversed order of indices
+        if adjKey not in adjancedDict:
+            result.append(None)
+        else:
+            result.append(adjancedDict[adjKey])
+        return result
 
 class VertexData:
     def __init__(self):
@@ -145,6 +182,7 @@ def writeAIN(file,srcdir,dstdir):
     file.write("# VERTEX_PUNT - vertex definition in form [position][uv][normal][tangent]\n")
     file.write("# VERTEX_AVG_N - additional averaged normal for generation of shadow volume\n")
     file.write("# FACE3 - triangular face definioniton in format [index of v0, index of v1, index of v2]\n")
+    file.write("# ADJANCED3 - indices of vertexes 'adjanced' to face - if 'N' if there is no adjanced vertex\n")
     file.write("#====================== IMAGES =====================\n")
     img2index = {}
     count=0
@@ -246,9 +284,12 @@ def writeAIN(file,srcdir,dstdir):
         me.calc_tangents()
         vertices = {}
         faces = {} # key is material ID
+        adjancedDict = {} # key id tuple of vertex indices (3 entries from every triangle)
+        unique2ponly = {}
         unique_vertices = []
         for face in me.polygons:
             face_indices = []
+            ponly_vertices = []
             for loopIdx in face.loop_indices:
                 vert = me.loops[loopIdx]
                 uv = uvlist[loopIdx].uv                
@@ -265,9 +306,12 @@ def writeAIN(file,srcdir,dstdir):
                 if unique_vi not in unique_vertices:
                     unique_vertices.append(unique_vi)
                 face_indices.append(unique_vertices.index(unique_vi))
+                unique2ponly[unique_vertices.index(unique_vi)] = vert.vertex_index
+                ponly_vertices.append(vert.vertex_index)
             if face.material_index not in faces:
                 faces[face.material_index] = []
             faces[face.material_index].append(face_indices)
+            add2AdjancedDictionary(ponly_vertices,face_indices,adjancedDict)
         for vert in vertices.values():
             vert.calcAvgVal()
         # save data
@@ -299,7 +343,39 @@ def writeAIN(file,srcdir,dstdir):
                 file.write(",")
                 file.write(str(face[2]))
                 file.write("]\n")
-        file.write("\n")
+                file.write("ADJANCED3: ")
+                adjVert = getAindAdjancedVertices(face,adjancedDict,unique2ponly)
+                file.write("[")
+                if adjVert[0] == None:
+                    file.write("N")
+                else:
+                    file.write(str(adjVert[0]))
+                file.write(",")
+                if adjVert[1] == None:
+                    file.write("N")
+                else:
+                    file.write(str(adjVert[1]))
+                file.write(",")
+                if adjVert[2] == None:
+                    file.write("N")
+                else:
+                    file.write(str(adjVert[2]))
+                file.write("]\n")     
+            # debug
+            #for face in faces[material_id]: 
+            #    file.write("FACE3PO: ")
+            #    for uvi in face:
+            #        writeVector3d(file,vertices[unique_vertices[uvi][0]].Position)
+            #    file.write("\n")
+            #    file.write("ADJANCEDPO: ")
+            #    adjVert = getAindAdjancedVertices(face,adjancedDict,unique2ponly)
+            #    for uvi in adjVert:
+            #        if uvi == None:
+            #            file.write("[-,-,-]")
+            #        else:
+            #            writeVector3d(file,vertices[unique_vertices[uvi][0]].Position)
+            #    file.write("\n")
+            file.write("\n")
         # remove temporary object
         bpy.data.meshes.remove(me)
     
