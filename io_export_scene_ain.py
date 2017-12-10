@@ -308,9 +308,11 @@ def writeAIN(file,srcdir,dstdir):
                 face_indices.append(unique_vertices.index(unique_vi))
                 unique2ponly[unique_vertices.index(unique_vi)] = vert.vertex_index
                 ponly_vertices.append(vert.vertex_index)
-            if face.material_index not in faces:
-                faces[face.material_index] = []
-            faces[face.material_index].append(face_indices)
+            material_name=me.materials[face.material_index].name
+            global_material_index=mater2index[material_name]
+            if global_material_index not in faces:
+                faces[global_material_index] = []
+            faces[global_material_index].append(face_indices)
             add2AdjancedDictionary(ponly_vertices,face_indices,adjancedDict)
         for vert in vertices.values():
             vert.calcAvgVal()
