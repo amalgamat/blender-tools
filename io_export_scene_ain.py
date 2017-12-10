@@ -170,7 +170,7 @@ def writeAIN(file,srcdir,dstdir):
     file.write("# MESH_COUNT - number of meshes defined in file\n")
     file.write("#           _COUNT lines always appear before corresponding data blocks\n")
     file.write("# IMG_PATH - path to image source\n")
-    file.write("# MATER_AMBIENT MATER_DIFFUSE_COLOR MATER_DIFFUSE_INTENSITY MATER_SPECULAR_COLOR MATER_SPECULAR_INTENSITY - generic material parameters\n")
+    file.write("# MATER_AMBIENT MATER_DIFFUSE_COLOR MATER_DIFFUSE_INTENSITY MATER_SPECULAR_COLOR MATER_SPECULAR_INTENSITY MATER_EMIT - generic material parameters\n")
     file.write("# MATER_TEX_AMBIENT - ambient texture image - index of image (index base 0 ) from IMAGES section\n")
     file.write("# MATER_TEX_DIFFUSE - diffuse texture image\n")
     file.write("# MATER_TEX_SPECULAR_COL - speculat color texture image\n")
@@ -227,7 +227,10 @@ def writeAIN(file,srcdir,dstdir):
         file.write("\n")
         file.write("MATER_SPECULAR_INTENSITY: ")
         file.write(f2str(mater.specular_intensity))
-        file.write("\n")    
+        file.write("\n")
+        file.write("MATER_EMIT: ")
+        file.write(f2str(mater.emit))
+        file.write("\n")          
         for texslot in mater.texture_slots:
             if texslot != None:
                 texture = bpy.data.textures[texslot.name]
